@@ -1,18 +1,18 @@
 SET search_path = public;
 CREATE SCHEMA IF NOT EXISTS public;
 
-CREATE TABLE city (
+CREATE TABLE IF NOT EXISTS city (
     city_id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     province VARCHAR(100) NOT NULL
 );
 
-CREATE TABLE category (
+CREATE TABLE IF NOT EXISTS category (
     category_id SERIAL PRIMARY KEY,
     name VARCHAR(50) NOT NULL
 );
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     users_id SERIAL PRIMARY KEY,
     name VARCHAR(50) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
@@ -25,7 +25,7 @@ CREATE TABLE users (
     last_login TIMESTAMP
 );
 
-CREATE TABLE budget_request (
+CREATE TABLE IF NOT EXISTS budget_request (
     request_id SERIAL PRIMARY KEY,
     city_id INT REFERENCES city(city_id) ON DELETE RESTRICT,
     requester_id INT REFERENCES users(users_id) ON DELETE SET NULL,
@@ -36,7 +36,7 @@ CREATE TABLE budget_request (
     created_at TIMESTAMP DEFAULT now()
 );
 
-CREATE TABLE requested_event (
+CREATE TABLE IF NOT EXISTS requested_event (
     req_event_id SERIAL PRIMARY KEY,
     request_id INT REFERENCES budget_request(request_id),
     name VARCHAR(100),
@@ -45,7 +45,7 @@ CREATE TABLE requested_event (
     notes TEXT
 );
 
-CREATE TABLE requested_break_down_line (
+CREATE TABLE IF NOT EXISTS requested_break_down_line (
     line_id SERIAL PRIMARY KEY,
     req_event_id INT REFERENCES requested_event(req_event_id),
     category_id INT REFERENCES category(category_id),
@@ -53,7 +53,7 @@ CREATE TABLE requested_break_down_line (
     amount NUMERIC(10, 2)
 );
 
-CREATE TABLE approval (
+CREATE TABLE IF NOT EXISTS approval (
     approval_id SERIAL PRIMARY KEY,
     request_id INT REFERENCES budget_request(request_id),
     approver_id INT REFERENCES users(users_id),
@@ -62,7 +62,7 @@ CREATE TABLE approval (
     decided_at TIMESTAMP
 );
 
-CREATE TABLE event (
+CREATE TABLE IF NOT EXISTS event (
     event_id SERIAL PRIMARY KEY,
     city_id INT REFERENCES city(city_id),
     name VARCHAR(50),
@@ -71,10 +71,11 @@ CREATE TABLE event (
     prepared_by INT REFERENCES users(users_id)
 );
 
-CREATE TABLE expense (
+-- Fixed: define event_id and category_id columns before referencing them
+CREATE TABLE IF NOT EXISTS expense (
     expense_id SERIAL PRIMARY KEY,
-    FOREIGN KEY (event_id) REFERENCES event (event_id),
-    FOREIGN KEY (category_id) REFERENCES category (category_id),
+    event_id INT REFERENCES event(event_id) ON DELETE SET NULL,
+    category_id INT REFERENCES category(category_id) ON DELETE SET NULL,
     vendor VARCHAR(100) NOT NULL,
     item_desc VARCHAR(100) NOT NULL,
     amount_before_tax NUMERIC(10, 2) NOT NULL,
@@ -82,33 +83,33 @@ CREATE TABLE expense (
     round_off NUMERIC(10, 2),
     total_amount NUMERIC(10, 2) NOT NULL,
     receipt_number INTEGER,
-    spent_at VARCHAR(100) NOT NULL,
+    spent_at TIMESTAMP NOT NULL,
     volunteer_name VARCHAR(100) NOT NULL
 );
 
-CREATE TABLE receipt(
+CREATE TABLE IF NOT EXISTS receipt(
     receipt_id SERIAL PRIMARY KEY,
-    FOREIGN KEY (expense_id) REFERENCES expense (expense_id),
-    file_path VARCHAR(100),
+    expense_id INT REFERENCES expense(expense_id) ON DELETE CASCADE,
+    file_path VARCHAR(255),
     uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
-CREATE TABLE petty_cash_statement(
+CREATE TABLE IF NOT EXISTS petty_cash_statement(
     pcs_id SERIAL PRIMARY KEY,
-    FOREIGN KEY (city_id) REFERENCES city (city_id),
+    city_id INT REFERENCES city(city_id),
     month VARCHAR(20) NOT NULL,
     opening_balance NUMERIC(10, 2) NOT NULL,
     total_spent NUMERIC(10, 2) NOT NULL,
     closing_balance NUMERIC(10, 2) NOT NULL,
     carried_forward NUMERIC(10, 2) NOT NULL,
     cash_in_hand NUMERIC(10, 2) NOT NULL,
-    FOREIGN KEY(prepared_by) REFERENCES users(name),
-    FOREIGN KEY(approved_by) REFERENCES users(name)
+    prepared_by INT REFERENCES users(users_id),
+    approved_by INT REFERENCES users(users_id)
 );
 
-CREATE TABLE petty_cash_expense(
+CREATE TABLE IF NOT EXISTS petty_cash_expense(
     pcx_id SERIAL PRIMARY KEY,
-    FOREIGN KEY(pcs_id) REFERENCES petty_cash_statement(pcs_id),
+    pcs_id INT REFERENCES petty_cash_statement(pcs_id),
     event VARCHAR(100) NOT NULL,
     nature_of_expense VARCHAR(100) NOT NULL,
     vendor VARCHAR(100) NOT NULL,
@@ -117,35 +118,35 @@ CREATE TABLE petty_cash_expense(
     round_off NUMERIC(10, 2),
     total_amount NUMERIC(10, 2) NOT NULL,
     receipt_number INTEGER,
-    spent_at VARCHAR(100) NOT NULL,
+    spent_at TIMESTAMP NOT NULL,
     volunteer_name VARCHAR(100) NOT NULL,
     balance_on_hand_after NUMERIC(10, 2) NOT NULL
 );
 
-CREATE TABLE cash_collection(
+CREATE TABLE IF NOT EXISTS cash_collection(
     collection_id SERIAL PRIMARY KEY,
-    FOREIGN KEY(city_id) REFERENCES city(city_id),
+    city_id INT REFERENCES city(city_id),
     event VARCHAR(100) NOT NULL,
     amount_collected NUMERIC(10, 2) NOT NULL,
     collected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
     notes VARCHAR(100)
 );
 
-CREATE TABLE deposit(
+CREATE TABLE IF NOT EXISTS deposit(
    deposit_id SERIAL PRIMARY KEY,
-   FOREIGN KEY(collection_id) REFERENCES cash_collection(collection_id),
+   collection_id INT REFERENCES cash_collection(collection_id),
    bank_ref VARCHAR(100) NOT NULL,
    deposited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
-   slip_path VARCHAR(100)
+   slip_path VARCHAR(255)
 );
 
-CREATE TABLE disbursement(
+CREATE TABLE IF NOT EXISTS disbursement(
    disb_id SERIAL PRIMARY KEY,
-   FOREIGN KEY(city_id) REFERENCES city(city_id),
+   city_id INT REFERENCES city(city_id),
    amount NUMERIC(10, 2) NOT NULL,
    method VARCHAR(100) NOT NULL,
    sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,
    ref_no INTEGER,
    reason VARCHAR(100),
-   FOREIGN KEY(request_id) REFERENCES budget_request(request_id)
+   request_id INT REFERENCES budget_request(request_id)
 );
